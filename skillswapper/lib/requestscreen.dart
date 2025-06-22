@@ -1,42 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'chat_screen.dart';
 
 class RequestScreen extends StatelessWidget {
   final String currentUser;
 
   RequestScreen({required this.currentUser});
 
-  Future<void> handleRequest(String sender, bool accepted) async {
+  Future<void> handleRequest(
+    BuildContext context,
+    String sender,
+    bool accepted,
+  ) async {
     final status = accepted ? 'accepted' : 'rejected';
 
-    final receiverRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser);
+    final receiverRef =
+        FirebaseFirestore.instance.collection('users').doc(currentUser);
+    final senderRef =
+        FirebaseFirestore.instance.collection('users').doc(sender);
 
-    final senderRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(sender);
+    // 1. Update status in requests/sentRequests
+    await receiverRef.collection('requests').doc(sender).update({
+      'status': status,
+    });
+    await senderRef.collection('sentRequests').doc(currentUser).update({
+      'status': status,
+    });
 
-    // Update status in the receiver's requests
-    await receiverRef
-        .collection('requests')
-        .doc(sender)
-        .update({'status': status});
+    // 2. Store in accepted/rejected
+    await receiverRef.collection(status).doc(sender).set({
+      'from': sender,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
 
-    // Add to receiver's accepted/rejected collection (optional)
-    await receiverRef
-        .collection(status)
-        .doc(sender)
-        .set({
-          'from': sender,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+    // 3. If accepted, store in connections and navigate to chat
+    if (accepted) {
+      await receiverRef.collection('connections').doc(sender).set({
+        'name': sender,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
 
-    // Update status in sender's sentRequests
-    await senderRef
-        .collection('sentRequests')
-        .doc(currentUser)
-        .update({'status': status});
+      await senderRef.collection('connections').doc(currentUser).set({
+        'name': currentUser,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            currentUser: currentUser,
+            peerUser: sender,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -51,7 +69,8 @@ class RequestScreen extends StatelessWidget {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
 
           final requests = snapshot.data!.docs;
 
@@ -70,8 +89,10 @@ class RequestScreen extends StatelessWidget {
                 margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
                   title: Text("Request from $sender"),
-                  subtitle: Text("Status: $status\n"
-                      "${data['timestamp']?.toDate().toString() ?? ''}"),
+                  subtitle: Text(
+                    "Status: $status\n"
+                    "${data['timestamp']?.toDate().toString() ?? ''}",
+                  ),
                   trailing: status == 'pending'
                       ? Row(
                           mainAxisSize: MainAxisSize.min,
@@ -79,23 +100,34 @@ class RequestScreen extends StatelessWidget {
                             IconButton(
                               icon: Icon(Icons.check, color: Colors.green),
                               tooltip: 'Accept',
-                              onPressed: () => handleRequest(sender, true),
+                              onPressed: () =>
+                                  handleRequest(context, sender, true),
                             ),
                             IconButton(
                               icon: Icon(Icons.close, color: Colors.red),
                               tooltip: 'Reject',
-                              onPressed: () => handleRequest(sender, false),
+                              onPressed: () =>
+                                  handleRequest(context, sender, false),
                             ),
                           ],
                         )
-                      : Icon(
-                          status == 'accepted'
-                              ? Icons.check_circle
-                              : Icons.cancel,
-                          color: status == 'accepted'
-                              ? Colors.green
-                              : Colors.red,
-                        ),
+                      : status == 'accepted'
+                          ? IconButton(
+                              icon: Icon(Icons.chat, color: Colors.blue),
+                              tooltip: 'Chat',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatScreen(
+                                      currentUser: currentUser,
+                                      peerUser: sender,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Icon(Icons.cancel, color: Colors.red),
                 ),
               );
             },

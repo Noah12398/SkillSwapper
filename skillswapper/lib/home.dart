@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skillswapper/combinedrequestsscreen.dart';
 import 'package:skillswapper/match.dart';
-import 'package:skillswapper/requestscreen.dart';
-import 'package:skillswapper/sendrequest.dart';
+
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -25,9 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
       'wants': wants,
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Profile saved!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Profile saved!')));
   }
 
   @override
@@ -44,35 +44,41 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(height: 20),
             Text('I can teach:', style: TextStyle(fontWeight: FontWeight.bold)),
-            ...allSkills.map((skill) => CheckboxListTile(
-                  title: Text(skill),
-                  value: teaches.contains(skill),
-                  onChanged: (val) {
-                    setState(() {
-                      val! ? teaches.add(skill) : teaches.remove(skill);
-                    });
-                  },
-                )),
-            Divider(),
-            Text('I want to learn:', style: TextStyle(fontWeight: FontWeight.bold)),
-            ...allSkills.map((skill) => CheckboxListTile(
-                  title: Text(skill),
-                  value: wants.contains(skill),
-                  onChanged: (val) {
-                    setState(() {
-                      val! ? wants.add(skill) : wants.remove(skill);
-                    });
-                  },
-                )),
-            ElevatedButton(
-              onPressed: saveProfile,
-              child: Text('Save Profile'),
+            ...allSkills.map(
+              (skill) => CheckboxListTile(
+                title: Text(skill),
+                value: teaches.contains(skill),
+                onChanged: (val) {
+                  setState(() {
+                    val! ? teaches.add(skill) : teaches.remove(skill);
+                  });
+                },
+              ),
             ),
+            Divider(),
+            Text(
+              'I want to learn:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            ...allSkills.map(
+              (skill) => CheckboxListTile(
+                title: Text(skill),
+                value: wants.contains(skill),
+                onChanged: (val) {
+                  setState(() {
+                    val! ? wants.add(skill) : wants.remove(skill);
+                  });
+                },
+              ),
+            ),
+            ElevatedButton(onPressed: saveProfile, child: Text('Save Profile')),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => MatchScreen(name: _nameController.text)),
+                MaterialPageRoute(
+                  builder: (_) => MatchScreen(name: _nameController.text),
+                ),
               ),
               child: Text('Find Matches'),
             ),
@@ -89,22 +95,14 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RequestScreen(currentUser: name),
+        builder: (_) => CombinedRequestsScreen(currentUser: name),
       ),
     );
   },
-  child: Text('View Requests'),
-),
-ElevatedButton(
-  onPressed: () => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => SentRequestsScreen(currentUser: _nameController.text)),
-  ),
-  child: Text('View Sent Requests'),
+  child: Text('View My Requests'),
 ),
 
           ],
-          
         ),
       ),
     );
