@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'chat_screen.dart'; // <-- Import ChatScreen
+import 'chat_screen.dart';
 
 class SentRequestsScreen extends StatelessWidget {
   final String currentUser;
@@ -19,25 +19,29 @@ class SentRequestsScreen extends StatelessWidget {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
+          }
 
           final requests = snapshot.data!.docs;
 
-          if (requests.isEmpty)
+          if (requests.isEmpty) {
             return Center(child: Text("You haven't sent any requests."));
+          }
 
-          return ListView(
-            children: requests.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final receiver = data['to'];
+          return ListView.builder(
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final data = requests[index].data() as Map<String, dynamic>;
+              final receiverUid = data['to']; // always UID
+              final receiverName = data['toName'] ?? receiverUid;
               final status = data['status'] ?? 'pending';
               final timestamp = data['timestamp']?.toDate().toString() ?? '';
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
-                  title: Text("To: $receiver"),
+                  title: Text("To: $receiverName"),
                   subtitle: Text("Status: $status\nSent at: $timestamp"),
                   trailing: status == 'accepted'
                       ? IconButton(
@@ -49,7 +53,7 @@ class SentRequestsScreen extends StatelessWidget {
                               MaterialPageRoute(
                                 builder: (_) => ChatScreen(
                                   currentUser: currentUser,
-                                  peerUser: receiver,
+                                  peerUser: receiverUid,
                                 ),
                               ),
                             );
@@ -65,7 +69,7 @@ class SentRequestsScreen extends StatelessWidget {
                         ),
                 ),
               );
-            }).toList(),
+            },
           );
         },
       ),

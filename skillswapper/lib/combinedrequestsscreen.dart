@@ -14,7 +14,7 @@ class CombinedRequestsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Your Requests'),
+          automaticallyImplyLeading: false, // 👈 removes the back button
           bottom: TabBar(
             tabs: [
               Tab(text: 'Received'),

@@ -9,7 +9,8 @@ class RequestScreen extends StatelessWidget {
 
   Future<void> handleRequest(
     BuildContext context,
-    String sender,
+    String senderUid,
+    String senderUsername,
     bool accepted,
   ) async {
     final status = accepted ? 'accepted' : 'rejected';
@@ -17,10 +18,10 @@ class RequestScreen extends StatelessWidget {
     final receiverRef =
         FirebaseFirestore.instance.collection('users').doc(currentUser);
     final senderRef =
-        FirebaseFirestore.instance.collection('users').doc(sender);
+        FirebaseFirestore.instance.collection('users').doc(senderUid);
 
     // 1. Update status in requests/sentRequests
-    await receiverRef.collection('requests').doc(sender).update({
+    await receiverRef.collection('requests').doc(senderUid).update({
       'status': status,
     });
     await senderRef.collection('sentRequests').doc(currentUser).update({
@@ -28,15 +29,16 @@ class RequestScreen extends StatelessWidget {
     });
 
     // 2. Store in accepted/rejected
-    await receiverRef.collection(status).doc(sender).set({
-      'from': sender,
+    await receiverRef.collection(status).doc(senderUid).set({
+      'from': senderUid,
+      'fromName': senderUsername,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
     // 3. If accepted, store in connections and navigate to chat
     if (accepted) {
-      await receiverRef.collection('connections').doc(sender).set({
-        'name': sender,
+      await receiverRef.collection('connections').doc(senderUid).set({
+        'name': senderUsername,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -50,7 +52,7 @@ class RequestScreen extends StatelessWidget {
         MaterialPageRoute(
           builder: (_) => ChatScreen(
             currentUser: currentUser,
-            peerUser: sender,
+            peerUser: senderUid,
           ),
         ),
       );
@@ -60,7 +62,7 @@ class RequestScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Requests for $currentUser")),
+      appBar: AppBar(title: Text("Requests")),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
@@ -69,8 +71,7 @@ class RequestScreen extends StatelessWidget {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
 
           final requests = snapshot.data!.docs;
 
@@ -82,16 +83,16 @@ class RequestScreen extends StatelessWidget {
             itemCount: requests.length,
             itemBuilder: (context, index) {
               final data = requests[index].data() as Map<String, dynamic>;
-              final sender = data['from'];
+              final senderUid = data['from'];
+              final senderName = data['fromName'] ?? senderUid;
               final status = data['status'] ?? 'pending';
 
               return Card(
                 margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
-                  title: Text("Request from $sender"),
+                  title: Text("Request from $senderName"),
                   subtitle: Text(
-                    "Status: $status\n"
-                    "${data['timestamp']?.toDate().toString() ?? ''}",
+                    "Status: $status\n${data['timestamp']?.toDate().toString() ?? ''}",
                   ),
                   trailing: status == 'pending'
                       ? Row(
@@ -100,14 +101,14 @@ class RequestScreen extends StatelessWidget {
                             IconButton(
                               icon: Icon(Icons.check, color: Colors.green),
                               tooltip: 'Accept',
-                              onPressed: () =>
-                                  handleRequest(context, sender, true),
+                              onPressed: () => handleRequest(
+                                  context, senderUid, senderName, true),
                             ),
                             IconButton(
                               icon: Icon(Icons.close, color: Colors.red),
                               tooltip: 'Reject',
-                              onPressed: () =>
-                                  handleRequest(context, sender, false),
+                              onPressed: () => handleRequest(
+                                  context, senderUid, senderName, false),
                             ),
                           ],
                         )
@@ -121,7 +122,7 @@ class RequestScreen extends StatelessWidget {
                                   MaterialPageRoute(
                                     builder: (_) => ChatScreen(
                                       currentUser: currentUser,
-                                      peerUser: sender,
+                                      peerUser: senderUid,
                                     ),
                                   ),
                                 );

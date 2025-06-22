@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:skillswapper/main.dart';
 import 'package:skillswapper/services/request_notifier.dart';
 
 class MatchScreen extends StatelessWidget {
-  final String name;
+  final String name; // this is UID
 
   MatchScreen({required this.name});
 
   Future<List<Map<String, dynamic>>> findMatches() async {
-    final currentUser = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(name)
-        .get();
-    final userTeaches = List<String>.from(currentUser['teaches']);
-    final userWants = List<String>.from(currentUser['wants']);
+    final currentUserDoc =
+        await FirebaseFirestore.instance.collection('users').doc(name).get();
+    final userTeaches = List<String>.from(currentUserDoc['teaches']);
+    final userWants = List<String>.from(currentUserDoc['wants']);
+    final currentUsername = currentUserDoc['name'];
 
     final allUsers = await FirebaseFirestore.instance.collection('users').get();
 
@@ -26,16 +24,14 @@ class MatchScreen extends StatelessWidget {
 
       final teaches = List<String>.from(doc['teaches']);
       final wants = List<String>.from(doc['wants']);
-
-      final mutualTeaches = userWants
-          .where((want) => teaches.contains(want))
-          .toList();
-      final mutualWants = userTeaches
-          .where((teach) => wants.contains(teach))
-          .toList();
+      final mutualTeaches =
+          userWants.where((want) => teaches.contains(want)).toList();
+      final mutualWants =
+          userTeaches.where((teach) => wants.contains(teach)).toList();
 
       if (mutualTeaches.isNotEmpty && mutualWants.isNotEmpty) {
         final userData = doc.data();
+        userData['uid'] = doc.id;
         userData['mutualTeaches'] = mutualTeaches;
         userData['mutualWants'] = mutualWants;
         matches.add(userData);
@@ -65,42 +61,50 @@ class MatchScreen extends StatelessWidget {
               icon: Icon(Icons.person_add_alt_1),
               label: Text("Send Request"),
               onPressed: () async {
-                final sender = name; // Current user
-                final receiver = user['name'];
+                final senderUid = name; // Current user UID
+                final receiverUid = user['uid'];
+                final senderDoc = await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(senderUid)
+                    .get();
+                final receiverUsername = user['name'];
+                final senderUsername = senderDoc['name'];
 
                 // Save to receiver's requests
                 await FirebaseFirestore.instance
                     .collection('users')
-                    .doc(receiver)
+                    .doc(receiverUid)
                     .collection('requests')
-                    .doc(sender)
+                    .doc(senderUid)
                     .set({
-                      'from': sender,
-                      'status': 'pending',
-                      'timestamp': FieldValue.serverTimestamp(),
-                    });
+                  'from': senderUid,
+                  'fromName': senderUsername,
+                  'status': 'pending',
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
 
-                // Also save to sender's sentRequests
+                // Save to sender's sentRequests
                 await FirebaseFirestore.instance
                     .collection('users')
-                    .doc(sender)
+                    .doc(senderUid)
                     .collection('sentRequests')
-                    .doc(receiver)
+                    .doc(receiverUid)
                     .set({
-                      'to': receiver,
-                      'status': 'pending',
-                      'timestamp': FieldValue.serverTimestamp(),
-                    });
+                  'to': receiverUid,
+                  'toName': receiverUsername,
+                  'status': 'pending',
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
 
-                // Notify listeners
+                // Notify UI
                 Provider.of<RequestNotifier>(
                   context,
                   listen: false,
-                ).addRequest(receiver);
+                ).addRequest(receiverUid);
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Request sent to $receiver")),
+                  SnackBar(content: Text("Request sent to $receiverUsername")),
                 );
               },
             ),
@@ -117,8 +121,8 @@ class MatchScreen extends StatelessWidget {
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: findMatches(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+
           final matches = snapshot.data!;
           if (matches.isEmpty) return Center(child: Text('No matches found'));
 
