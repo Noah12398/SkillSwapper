@@ -22,27 +22,25 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _showFirstButton = false;
   bool _showSecondButton = false;
-  String username = "";
+  String username = "User";
 
   Future<void> loadUserData() async {
     final data = await getUserData(widget.currentUser);
     setState(() {
-      username = data?['username'] ?? "User";
+      username = data?['name'] ?? "User";
     });
   }
 
   Future<Map<String, dynamic>?> getUserData(String uid) async {
     try {
-      final docSnapshot = await FirebaseFirestore.instance.collection('usernames').doc(uid).get();
-      if (docSnapshot.exists) {
-        return docSnapshot.data();
-      } else {
-        return null;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data();
       }
     } catch (e) {
-      print("Error fetching user data: $e");
-      return null;
+      print("Error getting user data: $e");
     }
+    return null;
   }
 
   @override
@@ -73,10 +71,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     loadUserData();
 
-    Future.delayed(Duration(milliseconds: 200), () {
+    Future.delayed(const Duration(milliseconds: 200), () {
       setState(() => _showFirstButton = true);
     });
-    Future.delayed(Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       setState(() => _showSecondButton = true);
     });
   }
@@ -242,12 +240,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   ),
                                   const SizedBox(height: 24),
                                   Text(
-                                    'Welcome back',
+                                    'Welcome back,',
                                     style: theme.textTheme.titleMedium?.copyWith(
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                  
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => LinearGradient(
+                                      colors: [Colors.indigo[600]!, Colors.purple[600]!],
+                                    ).createShader(bounds),
+                                    child: Text(
+                                      username,
+                                      style: theme.textTheme.headlineMedium?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   Text(
                                     'Ready to swap some skills?',
