@@ -1,0 +1,59 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class SentRequestsScreen extends StatelessWidget {
+  final String currentUser;
+
+  SentRequestsScreen({required this.currentUser});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Sent Requests")),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser)
+            .collection('sentRequests')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+
+          final requests = snapshot.data!.docs;
+
+          if (requests.isEmpty) return Center(child: Text("You haven't sent any requests."));
+
+          return ListView(
+            children: requests.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final receiver = data['to'];
+              final status = data['status'] ?? 'pending';
+              final timestamp = data['timestamp']?.toDate().toString() ?? '';
+
+              return Card(
+                margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  title: Text("To: $receiver"),
+                  subtitle: Text("Status: $status\nSent at: $timestamp"),
+                  trailing: Icon(
+                    status == 'accepted'
+                        ? Icons.check_circle
+                        : status == 'rejected'
+                            ? Icons.cancel
+                            : Icons.hourglass_top,
+                    color: status == 'accepted'
+                        ? Colors.green
+                        : status == 'rejected'
+                            ? Colors.red
+                            : Colors.orange,
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
+}

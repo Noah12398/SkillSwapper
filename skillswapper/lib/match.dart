@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:skillswapper/main.dart';
+import 'package:skillswapper/services/request_notifier.dart';
 
 class MatchScreen extends StatelessWidget {
   final String name;
@@ -7,7 +10,10 @@ class MatchScreen extends StatelessWidget {
   MatchScreen({required this.name});
 
   Future<List<Map<String, dynamic>>> findMatches() async {
-    final currentUser = await FirebaseFirestore.instance.collection('users').doc(name).get();
+    final currentUser = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(name)
+        .get();
     final userTeaches = List<String>.from(currentUser['teaches']);
     final userWants = List<String>.from(currentUser['wants']);
 
@@ -21,8 +27,12 @@ class MatchScreen extends StatelessWidget {
       final teaches = List<String>.from(doc['teaches']);
       final wants = List<String>.from(doc['wants']);
 
-      final mutualTeaches = userWants.where((want) => teaches.contains(want)).toList();
-      final mutualWants = userTeaches.where((teach) => wants.contains(teach)).toList();
+      final mutualTeaches = userWants
+          .where((want) => teaches.contains(want))
+          .toList();
+      final mutualWants = userTeaches
+          .where((teach) => wants.contains(teach))
+          .toList();
 
       if (mutualTeaches.isNotEmpty && mutualWants.isNotEmpty) {
         final userData = doc.data();
@@ -43,7 +53,10 @@ class MatchScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(user['name'], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              user['name'],
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 8),
             Text("Teaches: ${user['teaches'].join(', ')}"),
             Text("Wants: ${user['wants'].join(', ')}"),
@@ -51,14 +64,46 @@ class MatchScreen extends StatelessWidget {
             ElevatedButton.icon(
               icon: Icon(Icons.person_add_alt_1),
               label: Text("Send Request"),
-              onPressed: () {
-                // Placeholder: send connection request
+              onPressed: () async {
+                final sender = name; // Current user
+                final receiver = user['name'];
+
+                // Save to receiver's requests
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(receiver)
+                    .collection('requests')
+                    .doc(sender)
+                    .set({
+                      'from': sender,
+                      'status': 'pending',
+                      'timestamp': FieldValue.serverTimestamp(),
+                    });
+
+                // Also save to sender's sentRequests
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(sender)
+                    .collection('sentRequests')
+                    .doc(receiver)
+                    .set({
+                      'to': receiver,
+                      'status': 'pending',
+                      'timestamp': FieldValue.serverTimestamp(),
+                    });
+
+                // Notify listeners
+                Provider.of<RequestNotifier>(
+                  context,
+                  listen: false,
+                ).addRequest(receiver);
+
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text("Request sent to ${user['name']}"),
-                ));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Request sent to $receiver")),
+                );
               },
-            )
+            ),
           ],
         ),
       ),
@@ -72,7 +117,8 @@ class MatchScreen extends StatelessWidget {
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: findMatches(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
           final matches = snapshot.data!;
           if (matches.isEmpty) return Center(child: Text('No matches found'));
 
@@ -84,7 +130,7 @@ class MatchScreen extends StatelessWidget {
                   title: Text(user['name']),
                   subtitle: Text(
                     "They can teach: ${user['mutualTeaches'].join(', ')}\n"
-                    "They want to learn: ${user['mutualWants'].join(', ')}"
+                    "They want to learn: ${user['mutualWants'].join(', ')}",
                   ),
                   trailing: Icon(Icons.swap_horiz),
                   onTap: () => _showUserDetails(context, user),

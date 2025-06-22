@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skillswapper/match.dart';
+import 'package:skillswapper/requestscreen.dart';
+import 'package:skillswapper/sendrequest.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -74,7 +76,35 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Text('Find Matches'),
             ),
+            ElevatedButton(
+  onPressed: () {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please enter your name first')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestScreen(currentUser: name),
+      ),
+    );
+  },
+  child: Text('View Requests'),
+),
+ElevatedButton(
+  onPressed: () => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => SentRequestsScreen(currentUser: _nameController.text)),
+  ),
+  child: Text('View Sent Requests'),
+),
+
           ],
+          
         ),
       ),
     );
