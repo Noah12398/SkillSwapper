@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:skillswapper/ai_assistant_screen.dart';
 import 'package:skillswapper/match.dart';
 import 'package:skillswapper/welcome_screen.dart';
 import 'combinedrequestsscreen.dart';
@@ -33,7 +34,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<Map<String, dynamic>?> getUserData(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists) {
         return doc.data();
       }
@@ -153,11 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.indigo[50]!,
-              Colors.blue[50]!,
-              Colors.purple[50]!,
-            ],
+            colors: [Colors.indigo[50]!, Colors.blue[50]!, Colors.purple[50]!],
           ),
         ),
         child: SafeArea(
@@ -166,7 +166,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -182,10 +185,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ],
                         ),
                         child: IconButton(
-                          icon: Icon(Icons.arrow_back, color: Colors.indigo[400]),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: Colors.indigo[400],
+                          ),
                           onPressed: () {
                             Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => WelcomeScreen()),
+                              MaterialPageRoute(
+                                builder: (_) => WelcomeScreen(),
+                              ),
                               (route) => false,
                             );
                           },
@@ -195,7 +203,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                         child: Center(
                           child: ShaderMask(
                             shaderCallback: (bounds) => LinearGradient(
-                              colors: [Colors.indigo[600]!, Colors.purple[600]!],
+                              colors: [
+                                Colors.indigo[600]!,
+                                Colors.purple[600]!,
+                              ],
                             ).createShader(bounds),
                             child: Text(
                               'Dashboard',
@@ -215,7 +226,10 @@ class _DashboardScreenState extends State<DashboardScreen>
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
                     child: FadeTransition(
                       opacity: _fadeAnimation,
                       child: SlideTransition(
@@ -241,20 +255,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   const SizedBox(height: 24),
                                   Text(
                                     'Welcome back,',
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(color: Colors.grey[600]),
                                   ),
                                   ShaderMask(
                                     shaderCallback: (bounds) => LinearGradient(
-                                      colors: [Colors.indigo[600]!, Colors.purple[600]!],
+                                      colors: [
+                                        Colors.indigo[600]!,
+                                        Colors.purple[600]!,
+                                      ],
                                     ).createShader(bounds),
                                     child: Text(
                                       username,
-                                      style: theme.textTheme.headlineMedium?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: theme.textTheme.headlineMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -283,46 +300,68 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
                                       children: [
                                         Column(
                                           children: [
-                                            Icon(Icons.search_rounded, color: Colors.indigo[400]),
+                                            Icon(
+                                              Icons.search_rounded,
+                                              color: Colors.indigo[400],
+                                            ),
                                             const SizedBox(height: 8),
-                                            Text('Discover',
-                                                style: TextStyle(
-                                                  color: Colors.indigo[600],
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12,
-                                                )),
+                                            Text(
+                                              'Discover',
+                                              style: TextStyle(
+                                                color: Colors.indigo[600],
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
                                           ],
                                         ),
-                                        Container(height: 40, width: 1, color: Colors.indigo[200]),
+                                        Container(
+                                          height: 40,
+                                          width: 1,
+                                          color: Colors.indigo[200],
+                                        ),
                                         Column(
                                           children: [
-                                            Icon(Icons.swap_horiz_rounded,
-                                                color: Colors.purple[400]),
+                                            Icon(
+                                              Icons.swap_horiz_rounded,
+                                              color: Colors.purple[400],
+                                            ),
                                             const SizedBox(height: 8),
-                                            Text('Exchange',
-                                                style: TextStyle(
-                                                  color: Colors.purple[600],
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12,
-                                                )),
+                                            Text(
+                                              'Exchange',
+                                              style: TextStyle(
+                                                color: Colors.purple[600],
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
                                           ],
                                         ),
-                                        Container(height: 40, width: 1, color: Colors.indigo[200]),
+                                        Container(
+                                          height: 40,
+                                          width: 1,
+                                          color: Colors.indigo[200],
+                                        ),
                                         Column(
                                           children: [
-                                            Icon(Icons.trending_up_rounded,
-                                                color: Colors.green[400]),
+                                            Icon(
+                                              Icons.trending_up_rounded,
+                                              color: Colors.green[400],
+                                            ),
                                             const SizedBox(height: 8),
-                                            Text('Grow',
-                                                style: TextStyle(
-                                                  color: Colors.green[600],
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12,
-                                                )),
+                                            Text(
+                                              'Grow',
+                                              style: TextStyle(
+                                                color: Colors.green[600],
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ],
@@ -335,7 +374,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       onPressed: () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) => MatchScreen(name: widget.currentUser),
+                                          builder: (_) => MatchScreen(
+                                            name: widget.currentUser,
+                                          ),
                                         ),
                                       ),
                                       backgroundColor: Colors.indigo,
@@ -348,13 +389,35 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       onPressed: () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) => CombinedRequestsScreen(
-                                              currentUser: widget.currentUser),
+                                          builder: (_) =>
+                                              CombinedRequestsScreen(
+                                                currentUser: widget.currentUser,
+                                              ),
                                         ),
                                       ),
                                       backgroundColor: Colors.purple,
                                       icon: Icons.swap_horiz_rounded,
                                     ),
+                                  if (_showSecondButton)
+                                    const SizedBox(height: 20),
+
+                                  if (_showSecondButton)
+                                    _buildActionButton(
+                                      text: 'AI Assistance',
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => AIAssistantScreen(
+                                              currentUserId: widget.currentUser,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      backgroundColor: Colors.green,
+                                      icon: Icons.smart_toy_outlined,
+                                    ),
+
                                   const SizedBox(height: 24),
                                   Text(
                                     'Connect • Learn • Grow Together',
