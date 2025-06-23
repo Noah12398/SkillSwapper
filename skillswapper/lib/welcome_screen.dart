@@ -353,7 +353,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   ],
                                 ).createShader(bounds),
                                 child: Text(
-                                  'SkillSwapper',
+                                  'Swivora',
                                   style: theme.textTheme.headlineMedium
                                       ?.copyWith(
                                         color: Colors.white,

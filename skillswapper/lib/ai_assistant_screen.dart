@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   final String currentUserId;
@@ -15,10 +16,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
   final TextEditingController _controller = TextEditingController();
   String _response = '';
   bool _loading = false;
+  bool _profileLoading = true;
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  // User profile data
+  List<String> userTeaches = [];
+  List<String> userWants = [];
+  String currentUsername = '';
 
   @override
   void initState() {
@@ -40,8 +47,35 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
 
-    _fadeController.forward();
-    _slideController.forward();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUserId)
+          .get();
+      
+      if (currentUserDoc.exists) {
+        setState(() {
+          userTeaches = List<String>.from(currentUserDoc.data()?['teaches'] ?? []);
+          userWants = List<String>.from(currentUserDoc.data()?['wants'] ?? []);
+          currentUsername = currentUserDoc.data()?['name'] ?? '';
+          _profileLoading = false;
+        });
+        
+        _fadeController.forward();
+        _slideController.forward();
+      }
+    } catch (e) {
+      print('Error loading user profile: $e');
+      setState(() {
+        _profileLoading = false;
+      });
+      _fadeController.forward();
+      _slideController.forward();
+    }
   }
 
   @override
@@ -50,6 +84,22 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
+  }
+
+  String _generatePersonalizedSystemPrompt() {
+    String teachesSkills = userTeaches.isNotEmpty ? userTeaches.join(', ') : 'no specific skills listed';
+    String wantsSkills = userWants.isNotEmpty ? userWants.join(', ') : 'no specific skills listed';
+    String username = currentUsername.isNotEmpty ? currentUsername : 'User';
+    
+    return """You are an AI mentor for $username on SkillSwapper, a skill exchange platform. 
+    
+User Profile Context:
+- Name: $username
+- Skills they can teach: $teachesSkills
+- Skills they want to learn: $wantsSkills
+
+Provide helpful, encouraging advice about learning skills, improving profiles, and connecting with others. 
+Use their profile information to give personalized recommendations. Keep responses concise but informative and actionable.""";
   }
 
   Future<void> fetchAIResponse(String prompt) async {
@@ -73,10 +123,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
         body: jsonEncode({
           "model": "mistralai/Mistral-7B-Instruct-v0.2",
           "messages": [
-            {"role": "system", "content": "You are an AI mentor for skill exchange users. Provide helpful, encouraging advice about learning skills, improving profiles, and connecting with others. Keep responses concise but informative."},
+            {"role": "system", "content": _generatePersonalizedSystemPrompt()},
             {"role": "user", "content": prompt},
           ],
-          "max_tokens": 200,
+          "max_tokens": 250,
           "temperature": 0.7,
           "top_p": 0.9,
         }),
@@ -93,6 +143,71 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
         _loading = false;
       });
     }
+  }
+
+  List<Map<String, dynamic>> _generatePersonalizedPrompts() {
+    List<Map<String, dynamic>> prompts = [];
+
+    // Profile improvement prompt
+    prompts.add({
+      'text': 'Profile Tips',
+      'icon': Icons.person_outline_rounded,
+      'prompt': 'How can I improve my SkillSwapper profile to attract more connections and skill exchange opportunities?'
+    });
+
+    // Skills they want to learn
+    if (userWants.isNotEmpty) {
+      String skillsText = userWants.length > 2 ? userWants.take(2).join(' & ') : userWants.join(' & ');
+      prompts.add({
+        'text': 'Learn $skillsText',
+        'icon': Icons.school_rounded,
+        'prompt': 'What\'s the best learning path for ${userWants.join(', ')}? Give me a structured roadmap.'
+      });
+    }
+
+    // Skills they can teach - help them become better teachers
+    if (userTeaches.isNotEmpty) {
+      String skillsText = userTeaches.length > 2 ? userTeaches.take(2).join(' & ') : userTeaches.join(' & ');
+      prompts.add({
+        'text': 'Teach $skillsText Better',
+        'icon': Icons.lightbulb_outline_rounded,
+        'prompt': 'How can I become a better mentor and teacher for ${userTeaches.join(', ')}? What teaching strategies work best?'
+      });
+    }
+
+    // Connection strategies
+    prompts.add({
+      'text': 'Find Matches',
+      'icon': Icons.connect_without_contact_rounded,
+      'prompt': 'How can I find and connect with the right skill exchange partners on SkillSwapper?'
+    });
+
+    // Skill combination suggestions
+    if (userTeaches.isNotEmpty && userWants.isNotEmpty) {
+      prompts.add({
+        'text': 'Skill Synergy',
+        'icon': Icons.auto_awesome_rounded,
+        'prompt': 'How can I combine my existing skills (${userTeaches.join(', ')}) with what I want to learn (${userWants.join(', ')}) for better opportunities?'
+      });
+    }
+
+    // Default prompts if profile is empty
+    if (prompts.length <= 2) {
+      prompts.addAll([
+        {
+          'text': 'Learning Tips',
+          'icon': Icons.tips_and_updates_rounded,
+          'prompt': 'What are the most effective strategies for learning new skills quickly?'
+        },
+        {
+          'text': 'Skill Roadmap',
+          'icon': Icons.route_rounded,
+          'prompt': 'How do I create an effective learning roadmap for acquiring new skills?'
+        }
+      ]);
+    }
+
+    return prompts.take(4).toList(); // Limit to 4 prompts to avoid overflow
   }
 
   Widget _buildQuickPromptChip({
@@ -125,12 +240,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
           children: [
             Icon(icon, size: 16, color: Colors.indigo[600]),
             const SizedBox(width: 6),
-            Text(
-              text,
-              style: TextStyle(
-                color: Colors.indigo[700],
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: Colors.indigo[700],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -218,9 +336,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
               shaderCallback: (bounds) => LinearGradient(
                 colors: [Colors.indigo[600]!, Colors.purple[600]!],
               ).createShader(bounds),
-              child: const Text(
-                'AI Skill Mentor',
-                style: TextStyle(
+              child: Text(
+                currentUsername.isNotEmpty ? 'Hi $currentUsername!' : 'AI Skill Mentor',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -229,7 +347,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
             ),
             const SizedBox(height: 8),
             Text(
-              'Ask me anything about skills, learning paths, or improving your profile!',
+              currentUsername.isNotEmpty 
+                ? 'I\'ve reviewed your profile. Ask me anything about your learning journey!'
+                : 'Ask me anything about skills, learning paths, or improving your profile!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey[600],
@@ -237,6 +357,66 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                 height: 1.4,
               ),
             ),
+            if (userTeaches.isNotEmpty || userWants.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.indigo[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.indigo[200]!, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (userTeaches.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.star, size: 16, color: Colors.indigo[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'You teach: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.indigo[700],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userTeaches.join(', '),
+                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      ),
+                    ],
+                    if (userTeaches.isNotEmpty && userWants.isNotEmpty)
+                      const SizedBox(height: 12),
+                    if (userWants.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.school, size: 16, color: Colors.indigo[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'You want to learn: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.indigo[700],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userWants.join(', '),
+                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -310,6 +490,27 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
+    if (_profileLoading) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.indigo[50]!,
+                Colors.blue[50]!,
+                Colors.purple[50]!,
+              ],
+            ),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -408,34 +609,19 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
-                              children: [
-                                _buildQuickPromptChip(
-                                  text: 'Skill Roadmap',
-                                  icon: Icons.route_rounded,
-                                  onTap: () {
-                                    _controller.text = 'What skills should I learn to become a mobile developer?';
-                                    fetchAIResponse(_controller.text);
-                                  },
-                                ),
-                                const SizedBox(width: 12),
-                                _buildQuickPromptChip(
-                                  text: 'Profile Tips',
-                                  icon: Icons.person_outline_rounded,
-                                  onTap: () {
-                                    _controller.text = 'How can I improve my SkillSwapper profile to attract more connections?';
-                                    fetchAIResponse(_controller.text);
-                                  },
-                                ),
-                                const SizedBox(width: 12),
-                                _buildQuickPromptChip(
-                                  text: 'Learning Path',
-                                  icon: Icons.school_rounded,
-                                  onTap: () {
-                                    _controller.text = 'What\'s the best way to learn programming as a beginner?';
-                                    fetchAIResponse(_controller.text);
-                                  },
-                                ),
-                              ],
+                              children: _generatePersonalizedPrompts()
+                                  .map((prompt) => Padding(
+                                        padding: const EdgeInsets.only(right: 12),
+                                        child: _buildQuickPromptChip(
+                                          text: prompt['text'],
+                                          icon: prompt['icon'],
+                                          onTap: () {
+                                            _controller.text = prompt['prompt'];
+                                            fetchAIResponse(_controller.text);
+                                          },
+                                        ),
+                                      ))
+                                  .toList(),
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -458,7 +644,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                               minLines: 1,
                               maxLines: 4,
                               decoration: InputDecoration(
-                                hintText: 'Ask me anything about skills, learning, or profile improvement...',
+                                hintText: 'Ask me anything about your skills, learning journey, or profile...',
                                 hintStyle: TextStyle(color: Colors.grey[500]),
                                 filled: true,
                                 fillColor: Colors.white,
