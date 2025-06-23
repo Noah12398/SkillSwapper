@@ -10,7 +10,8 @@ class WelcomeScreen extends StatefulWidget {
   _WelcomeScreenState createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateMixin {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -99,11 +100,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
 
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
-    final email = '$username@skillswapper.com';
 
     setState(() => _loading = true);
 
     try {
+      // Fetch email from Firestore using username
+      final doc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(username)
+          .get();
+
+      if (!doc.exists || !doc.data()!.containsKey('email')) {
+        _showError('No account found with that username.');
+        setState(() => _loading = false);
+        return;
+      }
+
+      final email = doc.data()!['email'];
+
       final userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
@@ -132,15 +146,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
       await FirebaseFirestore.instance
           .collection('usernames')
           .doc(username)
-          .set({'uid': userCredential.user!.uid});
+          .set({'uid': userCredential.user!.uid, 'email': email});
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
-          .set(
-            {'username': username, 'uid': userCredential.user!.uid},
-            SetOptions(merge: true),
-          );
+          .set({
+            'username': username,
+            'email': email,
+            'uid': userCredential.user!.uid,
+          }, SetOptions(merge: true));
 
       _showSuccess('Account created successfully!');
       await _navigateBasedOnProfile(userCredential.user!.uid);
@@ -152,11 +167,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
   }
 
   Future<void> _navigateBasedOnProfile(String uid) async {
-    final userDoc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     final data = userDoc.data();
 
-    final hasProfile = data != null &&
+    final hasProfile =
+        data != null &&
         data.containsKey('teaches') &&
         data.containsKey('wants') &&
         (data['teaches'] as List).isNotEmpty &&
@@ -219,7 +237,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(color: Colors.red[400]!, width: 1),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );
@@ -286,11 +307,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.indigo[50]!,
-              Colors.blue[50]!,
-              Colors.purple[50]!,
-            ],
+            colors: [Colors.indigo[50]!, Colors.blue[50]!, Colors.purple[50]!],
           ),
         ),
         child: SafeArea(
@@ -330,14 +347,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                               ),
                               ShaderMask(
                                 shaderCallback: (bounds) => LinearGradient(
-                                  colors: [Colors.indigo[600]!, Colors.purple[600]!],
+                                  colors: [
+                                    Colors.indigo[600]!,
+                                    Colors.purple[600]!,
+                                  ],
                                 ).createShader(bounds),
                                 child: Text(
                                   'SkillSwapper',
-                                  style: theme.textTheme.headlineMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: theme.textTheme.headlineMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
                               ),
                               Text(
@@ -353,19 +374,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 children: [
                                   Expanded(
                                     child: GestureDetector(
-                                      onTap: () => setState(() => _isLoginMode = true),
+                                      onTap: () =>
+                                          setState(() => _isLoginMode = true),
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: _isLoginMode ? Colors.indigo : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: _isLoginMode
+                                              ? Colors.indigo
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           'Login',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: _isLoginMode ? Colors.white : Colors.grey[600],
+                                            color: _isLoginMode
+                                                ? Colors.white
+                                                : Colors.grey[600],
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -374,19 +406,30 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                   ),
                                   Expanded(
                                     child: GestureDetector(
-                                      onTap: () => setState(() => _isLoginMode = false),
+                                      onTap: () =>
+                                          setState(() => _isLoginMode = false),
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: !_isLoginMode ? Colors.green : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: !_isLoginMode
+                                              ? Colors.green
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           'Register',
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: !_isLoginMode ? Colors.white : Colors.grey[600],
+                                            color: !_isLoginMode
+                                                ? Colors.white
+                                                : Colors.grey[600],
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -403,8 +446,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 icon: Icons.person_outline,
                                 validator: (value) =>
                                     value == null || value.trim().isEmpty
-                                        ? 'Please enter your username'
-                                        : null,
+                                    ? 'Please enter your username'
+                                    : null,
                               ),
                               const SizedBox(height: 20),
 
@@ -414,9 +457,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                   label: 'Email',
                                   icon: Icons.email_outlined,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty) return 'Please enter your email';
-                                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                                    if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
+                                    if (value == null || value.isEmpty)
+                                      return 'Please enter your email';
+                                    final emailRegex = RegExp(
+                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                    );
+                                    if (!emailRegex.hasMatch(value))
+                                      return 'Enter a valid email';
                                     return null;
                                   },
                                 ),
@@ -430,15 +477,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 obscureText: _obscurePassword,
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: Colors.grey[500],
                                   ),
-                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
                                 ),
                                 validator: (value) =>
                                     value == null || value.length < 6
-                                        ? 'Password must be at least 6 characters'
-                                        : null,
+                                    ? 'Password must be at least 6 characters'
+                                    : null,
                               ),
                               const SizedBox(height: 32),
 
@@ -451,10 +502,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
                                 )
                               else
                                 _buildActionButton(
-                                  text: _isLoginMode ? 'Sign In' : 'Create Account',
-                                  onPressed: _isLoginMode ? _signInUser : _registerUser,
-                                  backgroundColor: _isLoginMode ? Colors.indigo : Colors.green,
-                                  icon: _isLoginMode ? Icons.login : Icons.person_add,
+                                  text: _isLoginMode
+                                      ? 'Sign In'
+                                      : 'Create Account',
+                                  onPressed: _isLoginMode
+                                      ? _signInUser
+                                      : _registerUser,
+                                  backgroundColor: _isLoginMode
+                                      ? Colors.indigo
+                                      : Colors.green,
+                                  icon: _isLoginMode
+                                      ? Icons.login
+                                      : Icons.person_add,
                                 ),
                               const SizedBox(height: 24),
                               Text(
